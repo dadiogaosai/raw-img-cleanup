@@ -23,7 +23,7 @@ both amd64 and arm64, run `make build-all`. Individual targets are `make build-m
 `dist/<os>-<arch>/rawtidy` (with `.exe` on Windows); use
 `make clean` to remove them.
 
-Choose the JPEG directory first, then the RAW directory. In the folder browser, use the arrow keys or `j`/`k` to highlight a folder, Enter or right arrow to open it, `h` or left arrow to go to its parent, and `s` to select the **current** folder. Press `e` to type or paste a path instead; Enter accepts it and Esc returns to browsing. Press `q` to quit. The app starts moving files as soon as both folders are valid.
+Choose the JPEG directory first, then the RAW directory. In the folder browser, use the arrow keys or `j`/`k` to highlight a folder, Enter or right arrow to open it, `h` or left arrow to go to its parent, and `s` to select the highlighted folder. Press `.` to select the current folder, or `e` to type or paste a path instead; Enter accepts it and Esc returns to browsing. Press `q` to quit. The app starts moving files as soon as both folders are valid.
 
 ## Directory preferences
 

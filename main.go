@@ -118,6 +118,8 @@ func (a app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.input.SetValue(a.picker.CurrentDirectory)
 				return a, a.input.Focus()
 			case "s":
+				return a.selectDirectory(a.picker.HighlightedPath())
+			case ".":
 				return a.selectDirectory(a.picker.CurrentDirectory)
 			}
 		}
@@ -196,7 +198,7 @@ func (a app) View() tea.View {
 			b.WriteString(a.input.View())
 		} else {
 			fmt.Fprintf(&b, "Browsing: %s\n", a.picker.CurrentDirectory)
-			b.WriteString("Enter/right: open folder · h/left: parent · s: select current folder · e: enter path · q: quit\n\n")
+			b.WriteString("Enter/right: open folder · h/left: parent · s: select highlighted folder · .: select current folder · e: enter path · q: quit\n\n")
 			b.WriteString(a.picker.View())
 		}
 		if a.err != nil {
