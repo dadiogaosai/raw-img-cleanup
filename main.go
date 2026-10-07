@@ -9,7 +9,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/dadiogaosai/raw-img-cleanup/cleanup"
+	"github.com/dadiogaosai/rawtidy/cleanup"
 )
 
 type cleanupFinished struct {

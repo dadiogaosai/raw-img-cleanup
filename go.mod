@@ -1,4 +1,4 @@
-module github.com/dadiogaosai/raw-img-cleanup
+module github.com/dadiogaosai/rawtidy
 
 go 1.26.0
 
