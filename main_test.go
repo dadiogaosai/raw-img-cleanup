@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/dadiogaosai/rawtidy/cleanup"
 )
 
 func key(code rune) tea.KeyPressMsg {
@@ -32,7 +33,14 @@ func TestFolderEntryAndBrowsingRunCleanup(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(raw, "Keep.CR3"), []byte("raw"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a := newApp()
+	cfg, err := loadConfig(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := newApp(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	model, _ := a.Update(key('e'))
 	a = model.(app)
 	if !a.editing {
@@ -68,7 +76,10 @@ func TestFolderEntryAndBrowsingRunCleanup(t *testing.T) {
 }
 
 func TestResultScreenCanScrollThroughFiles(t *testing.T) {
-	a := newApp()
+	a, err := newApp(config{DefaultParent: t.TempDir(), home: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
 	a.stage = 3
 	a.height = 6
 	a.details = []string{"first", "second", "third"}
@@ -83,7 +94,10 @@ func TestResultScreenCanScrollThroughFiles(t *testing.T) {
 }
 
 func TestResultScreenWrapsLongPathsWithinTerminal(t *testing.T) {
-	a := newApp()
+	a, err := newApp(config{DefaultParent: t.TempDir(), home: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
 	a.stage = 3
 	a.height = 12
 	a.width = 40
@@ -108,4 +122,128 @@ func TestResultScreenWrapsLongPathsWithinTerminal(t *testing.T) {
 	if !strings.Contains(a.View().Content, "END") {
 		t.Fatal("cannot scroll to the end of a wrapped failure")
 	}
+}
+
+func TestPickerStartsAtSeparateSavedDirectories(t *testing.T) {
+	home := t.TempDir()
+	jpeg := filepath.Join(home, "jpeg")
+	raw := filepath.Join(home, "raw")
+	for _, path := range []string{jpeg, raw} {
+		if err := os.Mkdir(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg, err := loadConfig(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.LastJPEG, cfg.LastRAW = jpeg, raw
+	a, err := newApp(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.picker.CurrentDirectory != mustDirectory(t, jpeg) {
+		t.Fatalf("JPEG picker starts at %q", a.picker.CurrentDirectory)
+	}
+	model, cmd := a.selectDirectory(jpeg)
+	a = model.(app)
+	if a.stage != 1 || a.picker.CurrentDirectory != mustDirectory(t, raw) || cmd == nil {
+		t.Fatalf("RAW picker did not open saved directory: stage=%d path=%q", a.stage, a.picker.CurrentDirectory)
+	}
+}
+
+func TestAcceptedSelectionsPersistOnlyAfterValidation(t *testing.T) {
+	home := t.TempDir()
+	jpeg := filepath.Join(home, "jpeg")
+	raw := filepath.Join(home, "raw")
+	for _, path := range []string{jpeg, raw} {
+		if err := os.Mkdir(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg, err := loadConfig(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := newApp(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, _ := a.selectDirectory(filepath.Join(home, "missing"))
+	a = model.(app)
+	if a.stage != 0 {
+		t.Fatal("invalid JPEG advanced selection")
+	}
+	model, _ = a.selectDirectory(jpeg)
+	a = model.(app)
+	if a.stage != 1 {
+		t.Fatalf("valid JPEG selection: %+v", a)
+	}
+	model, _ = a.selectDirectory(jpeg)
+	a = model.(app)
+	if a.err == nil || a.stage != 1 {
+		t.Fatal("overlapping RAW selection accepted")
+	}
+	saved, err := loadConfig(home)
+	if err != nil || saved.LastJPEG != mustDirectory(t, jpeg) || saved.LastRAW != "" {
+		t.Fatalf("saved after invalid RAW = %+v, %v", saved, err)
+	}
+	model, cmd := a.selectDirectory(raw)
+	a = model.(app)
+	if a.stage != 2 || cmd == nil {
+		t.Fatalf("valid RAW selection: %+v", a)
+	}
+	saved, err = loadConfig(home)
+	if err != nil || saved.LastRAW != mustDirectory(t, raw) {
+		t.Fatalf("saved RAW = %+v, %v", saved, err)
+	}
+}
+
+func TestConfigWriteFailureStopsBeforeCleanup(t *testing.T) {
+	home := t.TempDir()
+	jpeg := filepath.Join(home, "jpeg")
+	raw := filepath.Join(home, "raw")
+	for _, path := range []string{jpeg, raw} {
+		if err := os.Mkdir(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	source := filepath.Join(raw, "Drop.CR3")
+	if err := os.WriteFile(source, []byte("raw"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := loadConfig(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := newApp(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, _ := a.selectDirectory(jpeg)
+	a = model.(app)
+	configPath := filepath.Join(home, ".config", "rawtidy", "config")
+	if err := os.Rename(configPath, configPath+".backup"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(configPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	model, cmd := a.selectDirectory(raw)
+	a = model.(app)
+	if a.stage != 1 || a.fatalErr == nil || cmd == nil {
+		t.Fatalf("write failure did not stop selection: %+v", a)
+	}
+	if _, err := os.Stat(source); err != nil {
+		t.Fatalf("RAW file changed after config failure: %v", err)
+	}
+}
+
+func mustDirectory(t *testing.T, path string) string {
+	t.Helper()
+	got, err := cleanup.CheckDirectory(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got
 }

@@ -1,10 +1,4 @@
-# Interactive RAW Cleanup Specification
-
-## Purpose
-
-Help photographers separate unwanted RAW photos after reviewing the corresponding JPEG copies, while keeping the files recoverable and preventing accidental overwrites.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Select photo directories
 The application SHALL let the user select a JPEG directory and then a RAW directory by browsing folders or entering paths. It SHALL reject missing, unreadable, or overlapping directories before changing files. For each selection step, the browser SHALL start at the last successfully selected directory of that type when available, otherwise at the configured default parent when available, otherwise at the user's home directory.
@@ -29,6 +23,8 @@ The application SHALL let the user select a JPEG directory and then a RAW direct
 - **WHEN** a saved directory is unavailable or empty
 - **THEN** the browser starts in the configured default parent if available, or home otherwise
 
+## ADDED Requirements
+
 ### Requirement: Persist directory preferences
 The application SHALL maintain a YAML file at `~/.config/rawtidy/config` containing `default_parent`, `last_jpeg`, and `last_raw`. On first launch, it SHALL create the file with `default_parent` set to the user's home directory. It SHALL accept absolute paths and `~/` home-relative paths in the file. It SHALL update `last_jpeg` or `last_raw` only after a directory of that type is successfully selected. It SHALL report a config parse or write failure and stop rather than silently discard saved preferences.
 
@@ -51,44 +47,3 @@ The application SHALL maintain a YAML file at `~/.config/rawtidy/config` contain
 #### Scenario: Config failure
 - **WHEN** the config cannot be parsed or written
 - **THEN** the application reports the error and stops without replacing the existing config with defaults
-
-### Requirement: Match RAW files to reviewed JPEG files
-The application SHALL recursively scan regular files in both selected trees. JPEG candidates SHALL have `.jpg` or `.jpeg` extensions, ignoring extension case. RAW candidates SHALL have one of the documented supported RAW extensions, ignoring extension case. A RAW candidate SHALL be considered kept when any JPEG candidate anywhere in the JPEG tree has exactly the same filename stem, with stem case preserved. The application SHALL exclude the RAW root's `tmp-delete` subtree from scanning and SHALL not follow symbolic links.
-
-#### Scenario: JPEG in a different subfolder
-- **WHEN** a RAW file and a JPEG file have the same stem but appear in different relative subfolders
-- **THEN** the RAW file is kept in place
-
-#### Scenario: JPEG extension variants
-- **WHEN** a RAW file's stem matches a file ending in `.jpg` or `.jpeg` in any letter case
-- **THEN** the RAW file is kept in place
-
-#### Scenario: Unsupported files and prior results
-- **WHEN** the RAW tree contains unsupported file types or files already under its root `tmp-delete` directory
-- **THEN** those files are not considered for movement
-
-### Requirement: Move unmatched RAW files safely
-The application SHALL start moving unmatched RAW candidates after valid directory selection without a separate confirmation step. It SHALL place them directly inside `<RAW directory>/tmp-delete`, creating that directory when needed. It SHALL never overwrite an existing destination file; when a name is occupied, it SHALL add a unique numbered suffix before the extension. It SHALL preserve source files that cannot be moved.
-
-#### Scenario: Unmatched RAW file
-- **WHEN** a supported RAW file has no matching JPEG stem
-- **THEN** it is moved into the top level of `tmp-delete`
-
-#### Scenario: Name collision
-- **WHEN** `tmp-delete` already has the desired filename, including from another RAW subfolder
-- **THEN** the moved file receives an unused numbered filename and the existing file remains unchanged
-
-#### Scenario: Move failure
-- **WHEN** an unmatched RAW file cannot be moved
-- **THEN** the application reports the failure and leaves the source file in place
-
-### Requirement: Report cleanup results
-After a run, the application SHALL show the number of RAW candidates kept, moved, and failed, and SHALL identify any failed files. A run with no unmatched RAW files SHALL report that nothing was moved.
-
-#### Scenario: Completed run
-- **WHEN** the cleanup run finishes
-- **THEN** the application displays kept, moved, and failed counts
-
-#### Scenario: No unmatched files
-- **WHEN** every RAW candidate has a matching JPEG stem
-- **THEN** the application reports zero moved files

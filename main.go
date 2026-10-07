@@ -18,30 +18,41 @@ type cleanupFinished struct {
 }
 
 type app struct {
-	picker  filepicker.Model
-	input   textinput.Model
-	jpeg    string
-	raw     string
-	stage   int // 0: JPEG, 1: RAW, 2: running, 3: result
-	editing bool
-	err     error
-	result  cleanup.Result
-	height  int
-	width   int
-	scroll  int
-	details []string
+	config   config
+	picker   filepicker.Model
+	input    textinput.Model
+	jpeg     string
+	raw      string
+	stage    int // 0: JPEG, 1: RAW, 2: running, 3: result
+	editing  bool
+	err      error
+	fatalErr error
+	result   cleanup.Result
+	height   int
+	width    int
+	scroll   int
+	details  []string
 }
 
-func newApp() app {
+func newPicker(path string) filepicker.Model {
 	picker := filepicker.New()
+	picker.CurrentDirectory = path
 	picker.FileAllowed = false
 	picker.DirAllowed = false // Enter navigates; s selects the current folder.
 	picker.AutoHeight = false
 	picker.SetHeight(12)
+	return picker
+}
+
+func newApp(cfg config) (app, error) {
+	path, err := cfg.startDirectory(cfg.LastJPEG)
+	if err != nil {
+		return app{}, err
+	}
 	input := textinput.New()
 	input.Placeholder = "Type or paste a directory path"
 	input.CharLimit = 4096
-	return app{picker: picker, input: input, height: 24, width: 80}
+	return app{config: cfg, picker: newPicker(path), input: input, height: 24, width: 80}, nil
 }
 
 func (a app) Init() tea.Cmd { return a.picker.Init() }
@@ -129,17 +140,33 @@ func (a app) selectDirectory(path string) (tea.Model, tea.Cmd) {
 			a.err = fmt.Errorf("JPEG directory: %w", err)
 			return a, nil
 		}
+		rawStart, err := a.config.startDirectory(a.config.LastRAW)
+		if err != nil {
+			a.err = fmt.Errorf("RAW starting directory: %w", err)
+			return a, nil
+		}
+		a.config.LastJPEG = jpeg
+		if err := a.config.save(); err != nil {
+			a.fatalErr = fmt.Errorf("save JPEG directory: %w", err)
+			return a, tea.Quit
+		}
 		a.jpeg = jpeg
+		a.picker = newPicker(rawStart)
 		a.stage = 1
 		a.err = nil
 		a.editing = false
 		a.input.Blur()
-		return a, nil
+		return a, a.picker.Init()
 	}
 	paths, err := cleanup.Validate(a.jpeg, path)
 	if err != nil {
 		a.err = err
 		return a, nil
+	}
+	a.config.LastRAW = paths.RAW
+	if err := a.config.save(); err != nil {
+		a.fatalErr = fmt.Errorf("save RAW directory: %w", err)
+		return a, tea.Quit
 	}
 	a.raw = paths.RAW
 	a.err = nil
@@ -225,8 +252,28 @@ func (a app) wrapRows(text string) []string {
 }
 
 func main() {
-	if _, err := tea.NewProgram(newApp()).Run(); err != nil {
+	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func run() error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	cfg, err := loadConfig(home)
+	if err != nil {
+		return err
+	}
+	a, err := newApp(cfg)
+	if err != nil {
+		return err
+	}
+	model, err := tea.NewProgram(a).Run()
+	if err != nil {
+		return err
+	}
+	return model.(app).fatalErr
 }
