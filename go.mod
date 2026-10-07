@@ -6,6 +6,7 @@ require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.0.10
 	github.com/charmbracelet/x/ansi v0.11.7
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

@@ -25,6 +25,18 @@ both amd64 and arm64, run `make build-all`. Individual targets are `make build-m
 
 Choose the JPEG directory first, then the RAW directory. In the folder browser, use the arrow keys or `j`/`k` to highlight a folder, Enter or right arrow to open it, `h` or left arrow to go to its parent, and `s` to select the **current** folder. Press `e` to type or paste a path instead; Enter accepts it and Esc returns to browsing. Press `q` to quit. The app starts moving files as soon as both folders are valid.
 
+## Directory preferences
+
+On first launch, rawtidy creates `~/.config/rawtidy/config` as YAML. Its default parent is your home directory. You can edit the file to set a different fallback:
+
+```yaml
+default_parent: ~/Pictures
+last_jpeg: ""
+last_raw: ""
+```
+
+The JPEG and RAW pickers each start at their last successfully selected directory. If that directory is unavailable, they use `default_parent`, then home. Paths in the config can be absolute or start with `~/`. Browsing or entering an invalid directory does not change the saved locations. A malformed or unwritable config stops the app with an error.
+
 ## Matching and moves
 
 The app scans both directory trees recursively. A RAW file is kept when a `.jpg` or `.jpeg` file with the exact same filename stem exists anywhere in the JPEG tree. Extension matching ignores letter case; stem matching does not. For example, `Trip/IMG_001.CR3` is kept if `Favorites/IMG_001.JPG` exists. Symbolic links are not followed.
