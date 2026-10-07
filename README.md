@@ -10,12 +10,17 @@ Requires Go 1.26 or newer. From this repository:
 go run .
 ```
 
-Or build a binary:
+Build a binary for your current system:
 
 ```sh
-go build -o raw-img-cleanup .
-./raw-img-cleanup
+make build
 ```
+
+The binary is written to `dist/raw-img-cleanup-<os>-<arch>` (with `.exe` on Windows).
+Run the test suite with `make test`. To build macOS, Windows, and Linux binaries for
+both amd64 and arm64, run `make build-all`. Individual targets are `make build-mac`,
+`make build-win`, and `make build-linux`. All binaries are placed in `dist/`; use
+`make clean` to remove them.
 
 Choose the JPEG directory first, then the RAW directory. In the folder browser, use the arrow keys or `j`/`k` to highlight a folder, Enter or right arrow to open it, `h` or left arrow to go to its parent, and `s` to select the **current** folder. Press `e` to type or paste a path instead; Enter accepts it and Esc returns to browsing. Press `q` to quit. The app starts moving files as soon as both folders are valid.
 
