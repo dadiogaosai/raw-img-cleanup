@@ -59,7 +59,7 @@ func TestFolderEntryAndBrowsingRunCleanup(t *testing.T) {
 		t.Fatalf("JPEG selection failed: %+v", a)
 	}
 	a.picker.CurrentDirectory = raw
-	model, cmd := a.Update(key('s'))
+	model, cmd := a.Update(key('.'))
 	a = model.(app)
 	if a.stage != 2 || cmd == nil {
 		t.Fatalf("RAW browser selection did not start cleanup: %+v", a)
@@ -72,6 +72,49 @@ func TestFolderEntryAndBrowsingRunCleanup(t *testing.T) {
 	view := a.View().Content
 	if !strings.Contains(view, "Kept: 1 · Moved: 1 · Failed: 0") || !strings.Contains(view, "Drop.CR3") || !strings.Contains(view, "tmp-delete") {
 		t.Fatalf("result screen missing run details: %s", view)
+	}
+}
+
+func TestSelectsHighlightedSiblingDirectories(t *testing.T) {
+	root := t.TempDir()
+	jpeg := filepath.Join(root, "JPG")
+	raw := filepath.Join(root, "RAW")
+	for _, path := range []string{jpeg, raw} {
+		if err := os.Mkdir(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	jpeg = mustDirectory(t, jpeg)
+	raw = mustDirectory(t, raw)
+	cfg, err := loadConfig(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := newApp(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, _ := a.Update(a.Init()())
+	a = model.(app)
+	if got := a.picker.HighlightedPath(); got != jpeg {
+		t.Fatalf("highlighted JPEG = %q", got)
+	}
+	model, cmd := a.Update(key('s'))
+	a = model.(app)
+	if a.stage != 1 || a.jpeg != jpeg {
+		t.Fatalf("JPEG selection = %q, stage %d, err %v", a.jpeg, a.stage, a.err)
+	}
+	model, _ = a.Update(cmd())
+	a = model.(app)
+	model, _ = a.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyDown}))
+	a = model.(app)
+	if got := a.picker.HighlightedPath(); got != raw {
+		t.Fatalf("highlighted RAW = %q", got)
+	}
+	model, cmd = a.Update(key('s'))
+	a = model.(app)
+	if a.stage != 2 || a.raw != raw || cmd == nil {
+		t.Fatalf("RAW selection = %q, stage %d, err %v", a.raw, a.stage, a.err)
 	}
 }
 

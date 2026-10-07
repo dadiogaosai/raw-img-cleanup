@@ -31,7 +31,7 @@ func Validate(jpeg, raw string) (Paths, error) {
 		return Paths{}, fmt.Errorf("compare directories: %w", err)
 	}
 	if jpegContainsRAW || rawContainsJPEG {
-		return Paths{}, fmt.Errorf("JPEG and RAW directories overlap")
+		return Paths{}, fmt.Errorf("JPEG and RAW directories overlap: %q and %q", jpg, rawPath)
 	}
 	return Paths{JPEG: jpg, RAW: rawPath}, nil
 }
